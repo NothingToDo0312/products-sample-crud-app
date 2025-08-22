@@ -7,11 +7,6 @@ import {
   fetchProducts,
   updateProduct,
 } from "@/lib/api/products";
-import CustomHeader from "@/components/ui/CustomHeader";
-import CustomModal from "@/components/ui/CustomModal";
-import ProductForm from "@/components/products/ProductsForm";
-import CustomButton from "@/components/ui/CustomButton";
-import DeleteProduct from "@/components/products/ProductsDelete";
 
 export default function ProductsGrid() {
   // ========================
@@ -19,6 +14,7 @@ export default function ProductsGrid() {
   // ========================
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Modal states
   const [isProductModalFormOpen, setIsProductModalFormOpen] = useState(false);
@@ -50,10 +46,13 @@ export default function ProductsGrid() {
   // ========================
   const loadProducts = async () => {
     try {
+      setIsLoading(true);
       const data = await fetchProducts();
       setProducts(data?.data || []);
+      setError(null);
     } catch (err) {
       console.error("Failed to load products:", err);
+      setError("Failed to load products. Please check your API connection.");
     } finally {
       setIsLoading(false);
     }
@@ -65,11 +64,12 @@ export default function ProductsGrid() {
   const addProduct = async () => {
     try {
       await createProduct(formData);
-      await loadProducts();
+      await loadProducts(); // Reload products after creation
       setIsProductModalFormOpen(false);
       setFormData(initialFormState());
     } catch (err) {
       console.error("Failed to create product:", err);
+      alert("Failed to create product. Please try again.");
     }
   };
 
@@ -81,12 +81,13 @@ export default function ProductsGrid() {
 
     try {
       await updateProduct(selectedProduct.id, formData);
-      await loadProducts();
+      await loadProducts(); // Reload products after update
       setIsUpdateProductModalOpen(false);
       setFormData(initialFormState());
       setSelectedProduct(null);
     } catch (err) {
       console.error("Failed to update product:", err);
+      alert("Failed to update product. Please try again.");
     }
   };
 
@@ -98,11 +99,12 @@ export default function ProductsGrid() {
 
     try {
       await deleteProduct(selectedProduct.id);
-      await loadProducts();
+      await loadProducts(); // Reload products after deletion
       setIsDeleteProductModalOpen(false);
       setSelectedProduct(null);
     } catch (err) {
       console.error("Failed to delete product:", err);
+      alert("Failed to delete product. Please try again.");
     }
   };
 
@@ -116,7 +118,14 @@ export default function ProductsGrid() {
 
   const openUpdateModal = (product) => {
     setSelectedProduct(product);
-    setFormData(product);
+    setFormData({
+      product_name: product.product_name,
+      description: product.description,
+      price: product.price,
+      category: product.category,
+      img_url: product.img_url,
+      is_available: product.is_available,
+    });
     setIsUpdateProductModalOpen(true);
   };
 
@@ -145,11 +154,27 @@ export default function ProductsGrid() {
   // ========================
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading products...</p>
-        </div>
+      <div className="loading">
+        <div className="spinner"></div>
+        <p style={{ marginLeft: '1rem', color: '#6b7280' }}>Loading products...</p>
+      </div>
+    );
+  }
+
+  // ========================
+  // Error UI
+  // ========================
+  if (error) {
+    return (
+      <div style={{ padding: '1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#dc2626' }}>
+        <p>{error}</p>
+        <button 
+          className="btn btn-primary" 
+          onClick={loadProducts}
+          style={{ marginTop: '0.5rem' }}
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -161,96 +186,224 @@ export default function ProductsGrid() {
     <div className="bg-white">
       {/* Header */}
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:max-w-7xl lg:px-8">
-        <CustomHeader
-          label="Groceries"
-          button={{
-            isVisible: true,
-            label: "Add new product",
-            onClick: openAddModal,
-          }}
-        />
+        <div className="border-b border-gray-200 px-4 py-5 sm:px-6 dark:border-white/10">
+          <div className="-mt-2 -ml-4 flex flex-wrap items-center justify-between sm:flex-nowrap">
+            <div className="mt-2 ml-4">
+              <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+                Computer Parts
+              </h2>
+            </div>
+            <div className="mt-2 ml-4 shrink-0">
+              <button
+                className="btn btn-primary"
+                onClick={openAddModal}
+              >
+                Add new product
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* Product Grid */}
-        <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4 xl:gap-x-8">
-          {products.map((product) => (
-            <div key={product.id} className="group relative">
-              <img
-                alt={product.product_name}
-                src={product.img_url}
-                className="aspect-square w-full rounded-md bg-gray-200 object-cover group-hover:opacity-75 lg:aspect-auto lg:h-80"
-              />
-              <div className="mt-4 flex justify-between">
-                <div>
-                  <h3 className="text-sm text-gray-700">
+        <div className="product-grid">
+          {products.length === 0 ? (
+            <div style={{ 
+              gridColumn: '1 / -1', 
+              textAlign: 'center', 
+              padding: '3rem', 
+              color: '#6b7280',
+              background: '#f9fafb',
+              borderRadius: '8px'
+            }}>
+              <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>No products found</p>
+              <p>Start by adding your first computer part product.</p>
+            </div>
+          ) : (
+            products.map((product) => (
+              <div key={product.id} className="product-card">
+                <img
+                  alt={product.product_name}
+                  src={product.img_url}
+                  className="product-image"
+                  onError={(e) => {
+                    e.target.src = "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400&h=400&fit=crop";
+                  }}
+                />
+                <div className="product-info">
+                  <h3 className="product-name">
                     {product.product_name}
                   </h3>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className="product-description">
                     {product.description}
                   </p>
+                  <p className="product-price">
+                    ${product.price}
+                  </p>
+                  <div className="product-actions">
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => openDeleteModal(product)}
+                    >
+                      Delete
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => openUpdateModal(product)}
+                    >
+                      Update
+                    </button>
+                  </div>
                 </div>
-                <p className="text-sm font-medium text-gray-900">
-                  ${product.price}
-                </p>
               </div>
-              <div className="mt-4 flex gap-2">
-                <CustomButton
-                  type="secondary"
-                  label="Delete"
-                  onClick={() => openDeleteModal(product)}
-                />
-                <CustomButton
-                  label="Update"
-                  onClick={() => openUpdateModal(product)}
-                />
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
       {/* Add Product Modal */}
-      <CustomModal
-        label="Add new product"
-        isOpen={isProductModalFormOpen}
-        onClose={closeAllModals}
-        content={
-          <ProductForm
-            formData={formData}
-            setFormData={setFormData}
-            onClick={addProduct}
-            onClose={closeAllModals}
-          />
-        }
-      />
+      {isProductModalFormOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3 className="modal-title">Add new product</h3>
+              <div className="mt-2">
+                <ProductForm
+                  formData={formData}
+                  setFormData={setFormData}
+                  onClick={addProduct}
+                  onClose={closeAllModals}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Update Product Modal */}
-      <CustomModal
-        label="Update product"
-        isOpen={isUpdateProductModalOpen}
-        onClose={closeAllModals}
-        content={
-          <ProductForm
-            formData={formData}
-            setFormData={setFormData}
-            onClick={handleUpdateProduct}
-            onClose={closeAllModals}
-          />
-        }
-      />
+      {isUpdateProductModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3 className="modal-title">Update product</h3>
+              <div className="mt-2">
+                <ProductForm
+                  formData={formData}
+                  setFormData={setFormData}
+                  onClick={handleUpdateProduct}
+                  onClose={closeAllModals}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Product Modal */}
-      <CustomModal
-        label="Confirm Delete"
-        isOpen={isDeleteProductModalOpen}
-        onClose={closeAllModals}
-        content={
-          <DeleteProduct
-            productName={selectedProduct?.product_name}
-            onConfirm={handleDeleteProduct}
-            onCancel={closeAllModals}
-          />
-        }
-      />
+      {isDeleteProductModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3 className="modal-title">Confirm Delete</h3>
+              <div className="mt-2">
+                <DeleteProduct
+                  productName={selectedProduct?.product_name}
+                  onConfirm={handleDeleteProduct}
+                  onCancel={closeAllModals}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// Simple ProductForm component for now
+function ProductForm({ formData, setFormData, onClick, onClose }) {
+  const fields = [
+    { label: "Product Name", name: "product_name", type: "text", required: true },
+    { label: "Description", name: "description", type: "text", required: true },
+    { label: "Price", name: "price", type: "number", required: true, step: "0.01", min: "0" },
+    { label: "Category", name: "category", type: "text", required: true },
+    { label: "Image URL", name: "img_url", type: "url", required: false },
+  ];
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (!formData.product_name || !formData.description || !formData.price || !formData.category) {
+      alert("Please fill in all required fields");
+      return;
+    }
+    
+    if (parseFloat(formData.price) <= 0) {
+      alert("Price must be greater than 0");
+      return;
+    }
+    
+    onClick();
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {fields.map(({ label, name, type, required, step, min }) => (
+        <div key={name} className="form-group">
+          <label className="form-label">
+            {label}
+            {required && <span style={{ color: '#ef4444' }}> *</span>}
+          </label>
+          <input
+            className="form-input"
+            name={name}
+            type={type}
+            value={formData[name] || ""}
+            onChange={(e) => setFormData({ ...formData, [name]: e.target.value })}
+            required={required}
+            step={step}
+            min={min}
+          />
+        </div>
+      ))}
+
+      <div className="form-actions">
+        <button type="submit" className="btn btn-primary">
+          Save
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// Simple DeleteProduct component for now
+function DeleteProduct({ productName, onConfirm, onCancel }) {
+  return (
+    <>
+      <div className="sm:flex sm:items-start">
+        <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+          <h3 className="modal-title">
+            Delete Product
+          </h3>
+          <div className="mt-2">
+            <p className="text-sm text-gray-500">
+              Are you sure you want to delete "{productName}"? This product will
+              be permanently removed from our servers forever. This action
+              cannot be undone.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="form-actions">
+        <button className="btn btn-danger" onClick={onConfirm}>
+          Delete
+        </button>
+        <button className="btn btn-secondary" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </>
   );
 }

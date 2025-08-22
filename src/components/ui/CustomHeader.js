@@ -11,10 +11,12 @@ export default function CustomHeader(props) {
         </div>
         <div className="mt-2 ml-4 shrink-0">
           {props.button.isVisible && (
-            <CustomButton
+            <button
+              className="btn btn-primary"
               onClick={props.button.onClick}
-              label={props.button.label}
-            />
+            >
+              {props.button.label}
+            </button>
           )}
         </div>
       </div>

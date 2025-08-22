@@ -2,7 +2,7 @@
 // Fetch products (GET)
 // ========================
 export const fetchProducts = async () => {
-  const response = await fetch(
+  const  response= await fetch(
     `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/products`,
   );
   if (!response.ok) {
